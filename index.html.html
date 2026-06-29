@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Apartment Decision Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #0f172a;
+  --panel: #111827;
+  --card: #1f2937;
+  --muted: #94a3b8;
+  --text: #f8fafc;
+  --accent: #38bdf8;
+  --good: #22c55e;
+  --mid: #f59e0b;
+  --bad: #ef4444;
+  --line: #334155;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg,#0f172a,#111827); color: var(--text); }
+header { padding: 28px 32px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(15,23,42,.95); backdrop-filter: blur(8px); z-index: 10; }
+h1 { margin: 0 0 6px; font-size: 30px; }
+.subtitle { color: var(--muted); margin: 0; }
+.container { padding: 24px 32px 40px; max-width: 1600px; margin: auto; }
+.grid { display: grid; gap: 16px; }
+.kpis { grid-template-columns: repeat(4, minmax(180px, 1fr)); }
+.card { background: rgba(31,41,55,.86); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+.kpi .label { color: var(--muted); font-size: 13px; }
+.kpi .value { font-size: 25px; font-weight: 800; margin-top: 6px; }
+.controls { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin: 16px 0; }
+.weight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; }
+.weight { font-size: 12px; color: var(--muted); }
+.weight input { width: 100%; accent-color: var(--accent); }
+.selectors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.control-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.control-actions button { flex: 1 1 130px; }
+select, input[type="text"], input[type="number"], textarea { width: 100%; background: #0b1220; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 16px; }
+button { background: var(--accent); color: #001018; border: 0; padding: 10px 13px; border-radius: 10px; font-weight: 700; cursor: pointer; min-height: 44px; }
+button.secondary { background: #334155; color: var(--text); }
+.main { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#rankingTable { min-width: 760px; }
+#commuteTable { min-width: 980px; }
+th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th {
+  color: #cbd5e1;
+  cursor: pointer;
+  position: static;
+  background: #182235;
+  z-index: auto;
+}
+td:first-child, th:first-child {
+  position: static;
+  left: auto;
+  background: transparent;
+  z-index: auto;
+}
+th:first-child {
+  background: #182235;
+}
+td.num, th.num { text-align: right; }
+.badge { display: inline-block; border-radius: 999px; padding: 4px 8px; font-size: 12px; background: #334155; color: #e2e8f0; }
+.rank1 { background: rgba(34,197,94,.18); color: #bbf7d0; }
+.rank2 { background: rgba(56,189,248,.16); color: #bae6fd; }
+.rank3 { background: rgba(245,158,11,.16); color: #fde68a; }
+.heat { border-radius: 8px; padding: 5px 7px; font-weight: 700; color: #07111f; }
+.heat.good { background: #86efac; }
+.heat.mid { background: #fde68a; }
+.heat.bad { background: #fca5a5; }
+.heat.awful { background: #fb7185; }
+.tabs {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  position:sticky;
+  top:86px;
+  padding:12px 0;
+  background:rgba(17,24,39,.98);
+  z-index:9;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 12px 30px rgba(0,0,0,.22);
+  margin:16px 0;
+}
+.tab { padding: 9px 12px; background: #1e293b; color: #cbd5e1; border-radius: 999px; border:1px solid var(--line); cursor:pointer; }
+.tab.active { background: var(--accent); color:#06101a; font-weight:800; }
+.hidden { display:none; }
+.profile-grid { display:grid; grid-template-columns: repeat(3, minmax(240px,1fr)); gap: 14px; }
+.profile h3 { margin: 0 0 5px; }
+.profile .addr { color: var(--muted); font-size: 12px; min-height: 34px; }
+.note { color: var(--muted); font-size: 13px; }
+.edit-row { display:grid; grid-template-columns: minmax(180px, 1fr) 110px 90px 130px; gap:8px; align-items:center; margin: 7px 0; }
+.small { font-size: 12px; color: var(--muted); }
+footer { color: var(--muted); font-size: 12px; margin-top: 22px; }
+@media(max-width: 1100px) {
+ .kpis, .controls, .main, .profile-grid { grid-template-columns: 1fr; }
+ .weight-grid { grid-template-columns: 1fr 1fr; }
+ .tabs { top:86px; padding:10px 0; }
+ .container { padding: 20px 16px 32px; }
+ th { position: static; }
+ td:first-child, th:first-child { position: static; }
+}
+@media(max-width: 700px) {
+ header { position: static; padding: 22px 16px 14px; }
+ h1 { font-size: 24px; line-height: 1.15; }
+ .subtitle { font-size: 14px; }
+ .card { border-radius: 12px; padding: 14px; }
+ .kpis, .controls, .main, .profile-grid, .selectors, .weight-grid { grid-template-columns: 1fr; }
+ .tabs { position: sticky; top: 0; gap: 6px; margin: 12px -16px 16px; padding: 10px 16px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+ .tab { flex: 0 0 auto; min-height: 40px; white-space: nowrap; }
+ .control-actions { display: grid; grid-template-columns: 1fr; }
+ .edit-row { grid-template-columns: 1fr; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+ th, td { padding: 9px 7px; }
+ .kpi .value { font-size: 22px; overflow-wrap: anywhere; }
+ canvas { max-height: 320px; }
+}
+
+/* Fix: prevent table header rows from freezing over dashboard content */
+#rankingTable th,
+#commuteTable th,
+#rankingTable td:first-child,
+#commuteTable td:first-child {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>Apartment Decision Dashboard</h1>
+  <p class="subtitle">Interactive commute, lifestyle, rent, and priority-weighted ranking tool.</p>
+</header>
+<div class="container">
+  <section class="grid kpis">
+    <div class="card kpi"><div class="label">Best Overall</div><div class="value" id="bestOverall">—</div></div>
+    <div class="card kpi"><div class="label">Best Work Commute</div><div class="value" id="bestWork">—</div></div>
+    <div class="card kpi"><div class="label">Best Relationship Score</div><div class="value" id="bestRelationship">—</div></div>
+    <div class="card kpi"><div class="label">Apartments Compared</div><div class="value" id="aptCount">—</div></div>
+  </section>
+
+  <section class="controls">
+    <div class="card">
+      <h2 style="margin-top:0">Priority Weights</h2>
+      <div class="weight-grid" id="weights"></div>
+      <p class="small">Adjust sliders to update rankings instantly. Higher weight = more important.</p>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0">Filters</h2>
+      <div class="selectors">
+        <select id="areaFilter"><option value="All">All areas</option></select>
+        <select id="statusFilter"><option value="All">All statuses</option></select>
+        <input id="searchBox" type="text" placeholder="Search apartment or address"/>
+      </div>
+      <div class="control-actions">
+        <button onclick="resetWeights()">Reset weights</button>
+        <button class="secondary" onclick="exportCSV()">Export CSV</button>
+        <button class="secondary" onclick="clearSavedData()">Clear saved data</button>
+      </div>
+      <p class="small">Rent/rating fields are editable below; scores update after edits.</p>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="ranking">Rankings</div>
+    <div class="tab" data-tab="commutes">Commute Heatmap</div>
+    <div class="tab" data-tab="charts">Charts</div>
+    <div class="tab" data-tab="profiles">Profiles & Notes</div>
+    <div class="tab" data-tab="edit">Edit Data</div>
+  </div>
+
+  <section id="ranking" class="tabpane">
+    <div class="card">
+      <h2 style="margin-top:0">Overall Apartment Ranking</h2>
+      <div style="overflow:auto; max-height: 650px;">
+        <table id="rankingTable">
+          <thead><tr>
+            <th>Rank</th><th>Apartment</th><th>Area</th><th class="num">Score</th><th class="num">Avg Commute</th><th class="num">Work</th><th class="num">Relationship</th><th class="num">Rent</th><th>Status</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="commutes" class="tabpane hidden">
+    <div class="card">
+      <h2 style="margin-top:0">Rush-Hour Commute Heatmap</h2>
+      <div style="overflow:auto;">
+        <table id="commuteTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="charts" class="tabpane hidden">
+    <div class="main">
+      <div class="card"><h2 style="margin-top:0">Overall Score</h2><canvas id="scoreChart"></canvas></div>
+      <div class="card"><h2 style="margin-top:0">Average Commute</h2><canvas id="commuteChart"></canvas></div>
+      <div class="card"><h2 style="margin-top:0">Work vs Relationship Fit</h2><canvas id="scatterChart"></canvas></div>
+      <div class="card"><h2 style="margin-top:0">Area Mix</h2><canvas id="areaChart"></canvas></div>
+    </div>
+  </section>
+
+  <section id="profiles" class="tabpane hidden">
+    <div class="profile-grid" id="profilesGrid"></div>
+  </section>
+
+  <section id="edit" class="tabpane hidden">
+    <div class="card">
+      <h2 style="margin-top:0">Editable Rent, Rating & Status</h2>
+      <p class="note">Enter rent, ratings, statuses, and notes here. Data stays in this browser session unless you export CSV.</p>
+      <div id="editGrid"></div>
+    </div>
+  </section>
+
+  <footer>
+    Commutes are rush-hour estimates from the prior analysis and should be treated as directional. Your edits are saved in this browser using local storage. Use Export CSV for a backup.
+  </footer>
+</div>
+
+<script>
+const STORAGE_KEY = "apartment_decision_dashboard_v2";
+let apartments = [{"name": "119 Harry St", "address": "119 Harry St APT 3, Conshohocken, PA 19428", "area": "Conshohocken", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [15, 25], "Jenkintown": [35, 50], "Swedesboro": [50, 65], "Shore": [105, 130], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [35, 50], "Citizens Bank Park": [40, 60]}, "amenities": {"Gym": 0, "Pool": 0, "Garage": 0, "Walkable": 3, "Transit": 3}}, {"name": "Matson Mill", "address": "101 Washington St, Conshohocken, PA 19428", "area": "Conshohocken", "rent": null, "rating": null, "status": "Top option", "notes": "User previously said this is the current top option.", "commutes": {"KOP Work": [15, 25], "Jenkintown": [35, 50], "Swedesboro": [50, 65], "Shore": [105, 130], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [35, 50], "Citizens Bank Park": [40, 60]}, "amenities": {"Gym": 4, "Pool": 4, "Garage": 3, "Walkable": 4, "Transit": 4}}, {"name": "51 Washington St", "address": "51 Washington St, Conshohocken, PA 19428", "area": "Conshohocken", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [15, 25], "Jenkintown": [35, 50], "Swedesboro": [50, 65], "Shore": [105, 130], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [35, 50], "Citizens Bank Park": [40, 60]}, "amenities": {"Gym": 0, "Pool": 0, "Garage": 0, "Walkable": 4, "Transit": 4}}, {"name": "110 S Sibley Ave", "address": "110 S Sibley Ave, Ardmore, PA 19003", "area": "Ardmore", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [25, 40], "Jenkintown": [30, 45], "Swedesboro": [45, 60], "Shore": [100, 120], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [25, 40], "Citizens Bank Park": [35, 55]}, "amenities": {"Gym": 0, "Pool": 0, "Garage": 0, "Walkable": 5, "Transit": 5}}, {"name": "Cirro KOP", "address": "625 S Goddard Blvd, King of Prussia, PA 19406", "area": "King of Prussia", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [8, 15], "Jenkintown": [35, 50], "Swedesboro": [55, 75], "Shore": [110, 135], "Middletown DE": [70, 90], "Wilmington DE": [55, 70], "Newark DE": [65, 85], "Ancillae": [35, 50], "Citizens Bank Park": [45, 65]}, "amenities": {"Gym": 4, "Pool": 4, "Garage": 4, "Walkable": 3, "Transit": 2}}, {"name": "136 N 2nd St", "address": "136 N 2nd Street, Philadelphia, PA", "area": "Old City", "rent": null, "rating": null, "status": "Considering", "notes": "Best overall commute balance in earlier analysis.", "commutes": {"KOP Work": [40, 60], "Jenkintown": [30, 45], "Swedesboro": [35, 50], "Shore": [90, 115], "Middletown DE": [55, 70], "Wilmington DE": [45, 60], "Newark DE": [55, 75], "Ancillae": [30, 45], "Citizens Bank Park": [15, 25]}, "amenities": {"Gym": 0, "Pool": 0, "Garage": 2, "Walkable": 5, "Transit": 5}}, {"name": "1000 Terrain St", "address": "1000 Terrain St, Malvern, PA 19355", "area": "Malvern", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [20, 35], "Jenkintown": [45, 65], "Swedesboro": [65, 85], "Shore": [120, 145], "Middletown DE": [80, 100], "Wilmington DE": [60, 80], "Newark DE": [70, 90], "Ancillae": [45, 65], "Citizens Bank Park": [55, 80]}, "amenities": {"Gym": 4, "Pool": 4, "Garage": 3, "Walkable": 3, "Transit": 2}}, {"name": "Coulter Place", "address": "115 Coulter Ave, Ardmore, PA 19003", "area": "Ardmore", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [25, 40], "Jenkintown": [30, 45], "Swedesboro": [45, 60], "Shore": [100, 120], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [25, 40], "Citizens Bank Park": [35, 55]}, "amenities": {"Gym": 4, "Pool": 2, "Garage": 4, "Walkable": 5, "Transit": 5}}, {"name": "One Ardmore", "address": "24 Cricket Ave, Ardmore, PA 19003", "area": "Ardmore", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [25, 40], "Jenkintown": [30, 45], "Swedesboro": [45, 60], "Shore": [100, 120], "Middletown DE": [65, 85], "Wilmington DE": [50, 65], "Newark DE": [60, 80], "Ancillae": [25, 40], "Citizens Bank Park": [35, 55]}, "amenities": {"Gym": 4, "Pool": 3, "Garage": 4, "Walkable": 5, "Transit": 5}}, {"name": "West End Flats", "address": "444 Baltimore Ave, Media, PA", "area": "Media", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [35, 50], "Jenkintown": [45, 65], "Swedesboro": [35, 50], "Shore": [100, 125], "Middletown DE": [55, 75], "Wilmington DE": [35, 50], "Newark DE": [45, 65], "Ancillae": [45, 65], "Citizens Bank Park": [35, 55]}, "amenities": {"Gym": 4, "Pool": 3, "Garage": 3, "Walkable": 5, "Transit": 4}}, {"name": "50 at Granite Run", "address": "50 Middletown Road, Media, PA", "area": "Media", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [35, 50], "Jenkintown": [50, 70], "Swedesboro": [35, 50], "Shore": [100, 125], "Middletown DE": [55, 75], "Wilmington DE": [35, 50], "Newark DE": [45, 65], "Ancillae": [50, 70], "Citizens Bank Park": [35, 55]}, "amenities": {"Gym": 4, "Pool": 4, "Garage": 3, "Walkable": 3, "Transit": 2}}, {"name": "The Harrison", "address": "400 Paddock Cir, Newtown Square, PA", "area": "Newtown Square", "rent": null, "rating": null, "status": "Considering", "notes": "", "commutes": {"KOP Work": [25, 40], "Jenkintown": [45, 65], "Swedesboro": [45, 65], "Shore": [105, 130], "Middletown DE": [65, 85], "Wilmington DE": [45, 65], "Newark DE": [55, 75], "Ancillae": [40, 60], "Citizens Bank Park": [40, 60]}, "amenities": {"Gym": 4, "Pool": 4, "Garage": 3, "Walkable": 3, "Transit": 2}}];
+const defaultWeights = {"KOP Work": 30, "Swedesboro": 15, "Jenkintown": 12, "Wilmington DE": 8, "Newark DE": 7, "Middletown DE": 7, "Shore": 5, "Citizens Bank Park": 4, "Ancillae": 4, "Amenities": 5, "Rent": 3};
+const LEGACY_STORAGE_KEY = "apartment_decision_dashboard_v2";
+let weights = JSON.parse(JSON.stringify(defaultWeights));
+
+function cloneApartment(a) {
+  return {
+    ...a,
+    commutes: JSON.parse(JSON.stringify(a.commutes || {})),
+    amenities: JSON.parse(JSON.stringify(a.amenities || {})),
+  };
+}
+
+function apartmentId(a, index) {
+  return (a.id || `${a.name}|${a.address || ""}|${index}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+const defaultApartments = apartments.map((a, index) => ({
+  ...cloneApartment(a),
+  id: apartmentId(a, index),
+}));
+
+apartments = defaultApartments.map(cloneApartment);
+
+function normalizeSavedEdits(saved) {
+  if (saved.apartmentEdits) return saved.apartmentEdits;
+  if (!Array.isArray(saved.apartments)) return {};
+
+  return saved.apartments.reduce((edits, apt, index) => {
+    edits[apartmentId(apt, index)] = {
+      rent: apt.rent ?? null,
+      rating: apt.rating ?? null,
+      status: apt.status ?? "Considering",
+      notes: apt.notes ?? "",
+    };
+    return edits;
+  }, {});
+}
+
+function applyApartmentEdits(apartmentEdits) {
+  apartments = defaultApartments.map((apt) => ({
+    ...cloneApartment(apt),
+    ...(apartmentEdits[apt.id] || {}),
+  }));
+}
+
+function getApartmentEdits() {
+  return apartments.reduce((edits, apt) => {
+    edits[apt.id] = {
+      rent: apt.rent ?? null,
+      rating: apt.rating ?? null,
+      status: apt.status ?? "Considering",
+      notes: apt.notes ?? "",
+    };
+    return edits;
+  }, {});
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(LEGACY_STORAGE_KEY) ||
+      "{}"
+    );
+
+    if (saved.weights) weights = { ...defaultWeights, ...saved.weights };
+    applyApartmentEdits(normalizeSavedEdits(saved));
+  } catch (e) {
+    apartments = defaultApartments.map(cloneApartment);
+  }
+}
+
+function saveState() {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ apartmentEdits: getApartmentEdits(), weights })
+  );
+}
+
+loadState();
+const destinations = ["KOP Work","Jenkintown","Swedesboro","Shore","Middletown DE","Wilmington DE","Newark DE","Ancillae","Citizens Bank Park"];
+let charts = {};
+
+function avgRange(range) { return (range[0]+range[1])/2; }
+function commuteAvg(a) {
+  return destinations.reduce((s,d)=>s+avgRange(a.commutes[d]),0)/destinations.length;
+}
+function commuteScore(minutes) {
+  // 100 at 10 min, 0 at 125 min
+  return Math.max(0, Math.min(100, 100 - ((minutes-10)/115)*100));
+}
+function amenityScore(a) {
+  const vals = Object.values(a.amenities || {});
+  if(!vals.length) return 50;
+  return vals.reduce((s,v)=>s+v,0)/vals.length*20;
+}
+function rentScore(a) {
+  const rents = apartments.map(x=>x.rent).filter(x=>x && !isNaN(x));
+  if(!a.rent || !rents.length) return 70;
+  const min = Math.min(...rents), max = Math.max(...rents);
+  if(max === min) return 80;
+  return 100 - ((a.rent-min)/(max-min))*100;
+}
+function relationshipScore(a) {
+  const relDests = ["Swedesboro","Wilmington DE","Newark DE","Middletown DE"];
+  return relDests.reduce((s,d)=>s+commuteScore(avgRange(a.commutes[d])),0)/relDests.length;
+}
+function scoreApartment(a) {
+  let totalW = 0, total = 0;
+  Object.entries(weights).forEach(([k,w]) => {
+    w = Number(w);
+    if(k === "Amenities") { total += amenityScore(a)*w; totalW += w; }
+    else if(k === "Rent") { total += rentScore(a)*w; totalW += w; }
+    else if(a.commutes[k]) { total += commuteScore(avgRange(a.commutes[k]))*w; totalW += w; }
+  });
+  return totalW ? total/totalW : 0;
+}
+function filteredRanked() {
+  const area = document.getElementById("areaFilter").value;
+  const status = document.getElementById("statusFilter").value;
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  return apartments
+    .filter(a => area==="All" || a.area===area)
+    .filter(a => status==="All" || a.status===status)
+    .filter(a => !q || a.name.toLowerCase().includes(q) || a.address.toLowerCase().includes(q))
+    .map(a => ({...a, score: scoreApartment(a), avgCommute: commuteAvg(a), relScore: relationshipScore(a)}))
+    .sort((a,b)=>b.score-a.score);
+}
+function heatClass(mins) {
+  if(mins <= 35) return "good";
+  if(mins <= 60) return "mid";
+  if(mins <= 90) return "bad";
+  return "awful";
+}
+function formatRange(r) {
+  const [lo,hi]=r;
+  function f(x) {
+    if(x>=60) {
+      const h=Math.floor(x/60), m=x%60;
+      return m ? `${h}h ${m}m` : `${h}h`;
+    }
+    return `${x}m`;
+  }
+  return `${f(lo)}–${f(hi)}`;
+}
+function renderWeights() {
+  const el = document.getElementById("weights");
+  el.innerHTML = "";
+  Object.keys(weights).forEach(k => {
+    const div = document.createElement("div");
+    div.className = "weight";
+    div.innerHTML = `<label><strong>${k}</strong>: <span id="w_${k.replaceAll(' ','_')}">${weights[k]}</span></label><input type="range" min="0" max="40" value="${weights[k]}" oninput="weights['${k}']=Number(this.value); document.getElementById('w_${k.replaceAll(' ','_')}').textContent=this.value; saveState(); renderAll();">`;
+    el.appendChild(div);
+  });
+}
+function populateFilters() {
+  const areas = [...new Set(apartments.map(a=>a.area))].sort();
+  const statuses = [...new Set(apartments.map(a=>a.status))].sort();
+  const af = document.getElementById("areaFilter"), sf = document.getElementById("statusFilter");
+  areas.forEach(a=>af.innerHTML += `<option value="${a}">${a}</option>`);
+  statuses.forEach(s=>sf.innerHTML += `<option value="${s}">${s}</option>`);
+  af.onchange = sf.onchange = document.getElementById("searchBox").oninput = renderAll;
+}
+function renderRanking() {
+  const data = filteredRanked();
+  const tbody = document.querySelector("#rankingTable tbody");
+  tbody.innerHTML = "";
+  data.forEach((a,i)=> {
+    const badgeClass = i===0 ? "rank1" : i===1 ? "rank2" : i===2 ? "rank3" : "";
+    tbody.innerHTML += `<tr>
+      <td><span class="badge ${badgeClass}">#${i+1}</span></td>
+      <td><strong>${a.name}</strong><br><span class="small">${a.address}</span></td>
+      <td>${a.area}</td>
+      <td class="num"><strong>${a.score.toFixed(1)}</strong></td>
+      <td class="num">${a.avgCommute.toFixed(0)} min</td>
+      <td class="num">${formatRange(a.commutes["KOP Work"])}</td>
+      <td class="num">${a.relScore.toFixed(1)}</td>
+      <td class="num">${a.rent ? "$"+a.rent.toLocaleString() : "—"}</td>
+      <td><span class="badge">${a.status}</span></td>
+    </tr>`;
+  });
+  document.getElementById("aptCount").textContent = data.length;
+  document.getElementById("bestOverall").textContent = data[0]?.name || "—";
+  const byWork = [...data].sort((a,b)=>avgRange(a.commutes["KOP Work"])-avgRange(b.commutes["KOP Work"]));
+  document.getElementById("bestWork").textContent = byWork[0]?.name || "—";
+  const byRel = [...data].sort((a,b)=>b.relScore-a.relScore);
+  document.getElementById("bestRelationship").textContent = byRel[0]?.name || "—";
+}
+function renderCommutes() {
+  const data = filteredRanked();
+  const table = document.getElementById("commuteTable");
+  table.innerHTML = `<thead><tr><th>Apartment</th>${destinations.map(d=>`<th class="num">${d}</th>`).join("")}<th class="num">Avg</th></tr></thead><tbody></tbody>`;
+  const tb = table.querySelector("tbody");
+  data.forEach(a=> {
+    tb.innerHTML += `<tr><td><strong>${a.name}</strong><br><span class="small">${a.area}</span></td>` +
+      destinations.map(d=>`<td class="num"><span class="heat ${heatClass(avgRange(a.commutes[d]))}">${formatRange(a.commutes[d])}</span></td>`).join("") +
+      `<td class="num"><strong>${a.avgCommute.toFixed(0)} min</strong></td></tr>`;
+  });
+}
+function renderProfiles() {
+  const grid = document.getElementById("profilesGrid");
+  grid.innerHTML = "";
+  filteredRanked().forEach(a=> {
+    grid.innerHTML += `<div class="card profile">
+      <h3>${a.name}</h3>
+      <div class="addr">${a.address}</div>
+      <p><span class="badge">${a.area}</span> <span class="badge">${a.status}</span></p>
+      <p><strong>Overall:</strong> ${a.score.toFixed(1)} &nbsp; <strong>Avg commute:</strong> ${a.avgCommute.toFixed(0)} min</p>
+      <p><strong>Work:</strong> ${formatRange(a.commutes["KOP Work"])} &nbsp; <strong>Lauren fit:</strong> ${a.relScore.toFixed(1)}</p>
+      <p><strong>Rent:</strong> ${a.rent ? "$"+a.rent.toLocaleString() : "Add rent"} &nbsp; <strong>Rating:</strong> ${a.rating || "Add rating"}</p>
+      <p class="note">${a.notes || "No notes yet."}</p>
+      <p>
+        <a style="color:#7dd3fc" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}">Google Maps</a>
+        &nbsp;·&nbsp;
+        <a style="color:#7dd3fc" target="_blank" href="https://www.zillow.com/homes/${encodeURIComponent(a.address)}_rb/">Zillow Search</a>
+      </p>
+    </div>`;
+  });
+}
+function renderEdit() {
+  const el = document.getElementById("editGrid");
+  el.innerHTML = "";
+  apartments.forEach((a,i)=> {
+    el.innerHTML += `<div class="edit-row">
+      <div><strong>${a.name}</strong><br><span class="small">${a.address}</span></div>
+      <input type="number" placeholder="Rent" value="${a.rent || ""}" onchange="apartments[${i}].rent=this.value?Number(this.value):null; saveState(); renderAll(false);">
+      <input type="number" step="0.1" max="5" placeholder="Rating" value="${a.rating || ""}" onchange="apartments[${i}].rating=this.value?Number(this.value):null; saveState(); renderAll(false);">
+      <select onchange="apartments[${i}].status=this.value; saveState(); renderAll(false);">
+        ${["Considering","Top option","Toured","Favorite","Eliminated","Applied"].map(s=>`<option ${a.status===s?"selected":""}>${s}</option>`).join("")}
+      </select>
+    </div>
+    <textarea style="min-height:54px; margin-bottom:10px;" placeholder="Notes for ${a.name}" onchange="apartments[${i}].notes=this.value; saveState(); renderAll(false);">${a.notes || ""}</textarea>`;
+  });
+}
+function renderCharts() {
+  const data = filteredRanked().slice(0,12);
+  const labels = data.map(a=>a.name);
+  const scoreData = data.map(a=>a.score.toFixed(1));
+  const commuteData = data.map(a=>a.avgCommute.toFixed(0));
+  Object.values(charts).forEach(c=>c.destroy?.());
+  charts.score = new Chart(document.getElementById("scoreChart"), {
+    type:"bar", data:{labels, datasets:[{label:"Score", data:scoreData}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:100}}}
+  });
+  charts.commute = new Chart(document.getElementById("commuteChart"), {
+    type:"bar", data:{labels, datasets:[{label:"Avg Rush-Hour Minutes", data:commuteData}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+  charts.scatter = new Chart(document.getElementById("scatterChart"), {
+    type:"scatter", data:{datasets:[{label:"Apartment", data:data.map(a=>({x:commuteScore(avgRange(a.commutes["KOP Work"])), y:a.relScore, name:a.name}))}]},
+    options:{responsive:true, plugins:{tooltip:{callbacks:{label:(ctx)=>`${ctx.raw.name}: Work ${ctx.raw.x.toFixed(1)}, Relationship ${ctx.raw.y.toFixed(1)}`}}}, scales:{x:{title:{display:true,text:"Work Score"}}, y:{title:{display:true,text:"Relationship Score"}, min:0,max:100}}}
+  });
+  const areaCounts = {};
+  filteredRanked().forEach(a=>areaCounts[a.area]=(areaCounts[a.area]||0)+1);
+  charts.area = new Chart(document.getElementById("areaChart"), {
+    type:"doughnut", data:{labels:Object.keys(areaCounts), datasets:[{data:Object.values(areaCounts)}]},
+    options:{responsive:true}
+  });
+}
+function resetWeights() { weights = JSON.parse(JSON.stringify(defaultWeights)); saveState(); renderWeights(); renderAll(); }
+function clearSavedData() {
+  if(confirm("Clear saved rent, rating, status, notes, and weight changes from this browser?")) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+}
+function renderAll(doEdit=true) {
+  renderRanking(); renderCommutes(); renderProfiles(); if(doEdit) renderEdit(); renderCharts();
+}
+function exportCSV() {
+  const data = filteredRanked();
+  const rows = [["Rank","Apartment","Area","Address","Score","Avg Commute","Work","Relationship Score","Rent","Rating","Status","Notes"]];
+  data.forEach((a,i)=>rows.push([i+1,a.name,a.area,a.address,a.score.toFixed(1),a.avgCommute.toFixed(0),formatRange(a.commutes["KOP Work"]),a.relScore.toFixed(1),a.rent||"",a.rating||"",a.status,a.notes||""]));
+  const csv = rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download="apartment_dashboard_export.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".tabpane").forEach(x=>x.classList.add("hidden"));
+  t.classList.add("active"); document.getElementById(t.dataset.tab).classList.remove("hidden");
+  setTimeout(renderCharts,50);
+});
+renderWeights(); populateFilters(); renderAll();
+</script>
+</body>
+</html>
